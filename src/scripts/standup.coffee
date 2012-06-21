@@ -26,6 +26,7 @@ module.exports = (robot) ->
         start: new Date().getTime(),
         attendees: attendees,
         remaining: shuffleArrayClone(attendees)
+        pause: false,
         log: [],
       }
       who = attendees.map((user) -> user.name).join(', ')
@@ -60,6 +61,24 @@ module.exports = (robot) ->
     else
       msg.send "#{msg.match[1]}? Never heard of 'em"
 
+  robot.respond /pause$/i, (msg) ->
+    unless robot.brain.data.standup?[msg.message.user.room]
+      return
+    if robot.brain.data.standup[msg.message.user.room].pause
+      msg.send "Already paused!"
+      return
+    robot.brain.data.standup[msg.message.user.room].pause = true
+    msg.send "Paused recording logs."
+
+  robot.respond /resume$/i, (msg) ->
+    unless robot.brain.data.standup?[msg.message.user.room]
+      return
+    unless robot.brain.data.standup[msg.message.user.room].pause
+      msg.send "Already resumed!"
+      return
+    robot.brain.data.standup[msg.message.user.room].pause = false
+    msg.send "Resumed recording logs."
+
   robot.respond /standup\?? *$/i, (msg) ->
     msg.send """
              <who> is a member of <team> - tell hubot who is the member of <team>'s standup
@@ -67,11 +86,16 @@ module.exports = (robot) ->
              cancel standup - cancel the current standup
              next - say when your updates for the standup is done
              skip <who> - skip someone when they're not available
+             pause - Pause the standup; stop recording log.
+             resume - resume the standup; resume recording log.
              """
 
   robot.catchAll (msg) ->
     unless robot.brain.data.standup?[msg.message.user.room]
       return
+    if robot.brain.data.standup[msg.message.user.room].pause
+      return
+
     robot.brain.data.standup[msg.message.user.room].log.push { message: msg.message, time: new Date().getTime() }
 
 shuffleArrayClone = (array) ->
